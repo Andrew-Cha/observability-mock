@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from sqlite3 import Cursor
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from database import initialize_database, get_db_cursor
-from schema import Cat, Owner
+from api.database import initialize_database, get_db_cursor
+from api.schema import Cat, Owner
 
 app = FastAPI()
 initialize_database()
