@@ -2,8 +2,9 @@ import pytest
 import sqlite3
 
 from fastapi.testclient import TestClient
-from api.database import create_database_tables, get_db_cursor
-from api.main import app
+
+from backend.api.database import create_database_tables, get_db_cursor
+from backend.api.main import app
 
 client = TestClient(app)
 
