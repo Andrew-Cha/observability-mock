@@ -1,12 +1,16 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from sqlite3 import Cursor
-from typing import List, Optional
+from typing import List
 
 from api.database import initialize_database, get_db_cursor
-from api.schema import Cat, Owner
+from api.schema import CreateCat, CreateOwner, Cat, Owner, UpdateCat, UpdateOwner
 
 app = FastAPI()
 initialize_database()
+
+#
+# Cats
+#
 
 
 @app.get("/cats/")
@@ -24,38 +28,35 @@ def get_cats(cursor: Cursor = Depends(get_db_cursor)) -> List[Cat]:
 
 
 @app.post("/cats/")
-def create_cat(
-    name: str, breed: str, age: int, cursor: Cursor = Depends(get_db_cursor)
-) -> Cat:
+def create_cat(cat: CreateCat, cursor: Cursor = Depends(get_db_cursor)) -> Cat:
     cursor.execute(
-        "INSERT INTO cat(name, breed, age) VALUES (?, ?, ?)", (name, breed, age)
+        "INSERT INTO cat(name, breed, age) VALUES (?, ?, ?)",
+        (cat.name, cat.breed, cat.age),
     )
     cursor.connection.commit()
     cat_id = cursor.lastrowid
 
-    return Cat(id=cat_id, age=age, name=name, breed=breed)
+    return Cat(id=cat_id, age=cat.age, name=cat.name, breed=cat.breed)
 
 
 @app.patch("/cats/{cat_id}/")
-def update_cat(
+def patch_cat(
     cat_id: int,
-    name: Optional[str] = None,
-    breed: Optional[str] = None,
-    age: Optional[int] = None,
+    cat: UpdateCat,
     cursor: Cursor = Depends(get_db_cursor),
 ) -> Cat:
     cursor.execute("SELECT * FROM cat WHERE id = ?", (cat_id,))
-    cat = cursor.fetchone()
+    cat_in_db = cursor.fetchone()
 
-    if not cat:
+    if not cat_in_db:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Cat with id {cat_id} not found",
         )
 
-    updated_name = name if name is not None else cat[1]
-    updated_breed = breed if breed is not None else cat[2]
-    updated_age = age if age is not None else cat[3]
+    updated_name = cat.name if cat.name is not None else cat_in_db[1]
+    updated_breed = cat.breed if cat.breed is not None else cat_in_db[2]
+    updated_age = cat.age if cat.age is not None else cat_in_db[3]
 
     cursor.execute(
         "UPDATE cat SET name = ?, breed = ?, age = ? WHERE id = ?",
@@ -64,6 +65,11 @@ def update_cat(
     cursor.connection.commit()
 
     return Cat(id=cat_id, name=updated_name, breed=updated_breed, age=updated_age)
+
+
+#
+# Owners
+#
 
 
 @app.get("/owners/")
@@ -81,58 +87,56 @@ def get_owners(cursor: Cursor = Depends(get_db_cursor)) -> List[Owner]:
 
 
 @app.post("/owners/")
-def create_owner(
-    name: str, address: str, cat_id: int, cursor: Cursor = Depends(get_db_cursor)
-) -> Owner:
-    cursor.execute("SELECT EXISTS(SELECT 1 FROM cat WHERE id = ?)", (cat_id,))
+def create_owner(owner: CreateOwner, cursor: Cursor = Depends(get_db_cursor)) -> Owner:
+    cursor.execute("SELECT EXISTS(SELECT 1 FROM cat WHERE id = ?)", (owner.cat_id,))
     cat_exists = cursor.fetchone()[0]
 
     if not cat_exists:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Cat with id {cat_id} does not exist",
+            detail=f"Cat with id {owner.cat_id} does not exist",
         )
 
     cursor.execute(
         "INSERT INTO owner(name, address, cat_id) VALUES (?, ?, ?)",
-        (name, address, cat_id),
+        (owner.name, owner.address, owner.cat_id),
     )
     cursor.connection.commit()
     owner_id = cursor.lastrowid
 
-    return Owner(id=owner_id, name=name, address=address, cat_id=cat_id)
+    return Owner(
+        id=owner_id, name=owner.name, address=owner.address, cat_id=owner.cat_id
+    )
 
 
 @app.patch("/owners/{owner_id}/")
-def update_owner(
+def patch_owner(
     owner_id: int,
-    name: Optional[str] = None,
-    address: Optional[str] = None,
-    cat_id: Optional[int] = None,
+    owner: UpdateOwner,
     cursor: Cursor = Depends(get_db_cursor),
 ) -> Owner:
     cursor.execute("SELECT * FROM owner WHERE id = ?", (owner_id,))
-    owner = cursor.fetchone()
+    owner_in_db = cursor.fetchone()
 
-    if not owner:
+    if not owner_in_db:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Owner with id {owner_id} not found",
         )
 
-    if cat_id is not None:
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM cat WHERE id = ?)", (cat_id,))
+    if owner.cat_id is not None:
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM cat WHERE id = ?)", (owner.cat_id,))
         cat_exists = cursor.fetchone()[0]
 
         if not cat_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cat with id {cat_id} does not exist",
+                detail=f"Cat with id {owner.cat_id} does not exist",
             )
 
-    updated_name = name if name is not None else owner[1]
-    updated_address = address if address is not None else owner[2]
-    updated_cat_id = cat_id if cat_id is not None else owner[3]
+    updated_name = owner.name if owner.name is not None else owner_in_db[1]
+    updated_address = owner.address if owner.address is not None else owner_in_db[2]
+    updated_cat_id = owner.cat_id if owner.cat_id is not None else owner_in_db[3]
 
     cursor.execute(
         "UPDATE owner SET name = ?, address = ?, cat_id = ? WHERE id = ?",
