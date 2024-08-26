@@ -1,6 +1,9 @@
-from fastapi import FastAPI, HTTPException, Depends, status
 from sqlite3 import Cursor
+from time import time
 from typing import List
+
+from fastapi import FastAPI, HTTPException, Depends, Request, status
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.api.database import initialize_database, get_db_cursor
 from backend.api.schema import (
@@ -12,7 +15,22 @@ from backend.api.schema import (
     UpdateOwner,
 )
 
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time()
+        print(f"Incoming request: {request.method} {request.url}")
+        response = await call_next(request)
+        process_time = time() - start_time
+        print(
+            f"Response status: {response.status_code}, Time taken: {process_time:.4f} seconds"
+        )
+
+        return response
+
+
 app = FastAPI()
+app.add_middleware(LoggingMiddleware)
 initialize_database()
 
 #

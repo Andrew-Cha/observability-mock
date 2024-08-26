@@ -1,7 +1,7 @@
 services:
   fastapi:
-    build: ./fastapi/
+    build: ./backend/
     ports:
       - "8000:8000"
     volumes:
-      - ./fastapi:/app
+      - ./backend:/app/backend
