@@ -1,9 +1,18 @@
 from sqlite3 import Cursor
 from time import time
 from typing import List
+from os import environ
 
 from fastapi import FastAPI, HTTPException, Depends, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+    OTLPSpanExporter as OTLPSpanExporterHTTP,
+)
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from backend.api.database import initialize_database, get_db_cursor
 from backend.api.schema import (
@@ -29,8 +38,22 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
+def setup_tracer_instrumentation(app: FastAPI) -> None:
+    port = environ.get("OTEL_JAEGER_TRACE_PORT")
+    endpoint = f"http://jaeger:{port}/v1/traces"
+
+    tracer = TracerProvider()
+    trace.set_tracer_provider(tracer)
+
+    tracer.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporterHTTP(endpoint=endpoint))
+    )
+    FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer)
+
+
 app = FastAPI()
 app.add_middleware(LoggingMiddleware)
+setup_tracer_instrumentation(app)
 initialize_database()
 
 #
