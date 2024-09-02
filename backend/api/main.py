@@ -1,5 +1,6 @@
+import random
 from sqlite3 import Cursor
-from time import time
+from time import time, sleep
 from typing import List
 from os import environ
 
@@ -195,3 +196,31 @@ def patch_owner(
     return Owner(
         id=owner_id, name=updated_name, address=updated_address, cat_id=updated_cat_id
     )
+
+
+def secret_one():
+    cat_count = 0
+    for _ in range(0, 1000 * 1000):
+        rand = random.randint(0, 1000 * 1000)
+        if rand % 42 == 0:
+            cat_count = rand
+
+    return f"There are {cat_count} cats in the garden,"
+
+
+def secret_two():
+    butterfly_count = 0
+    for _ in range(0, 1000 * 1000):
+        rand = random.randint(0, 1000 * 1000)
+        if rand % 42 == 0:
+            butterfly_count = rand
+
+    return f" and {butterfly_count} of them are chasing butterflies."
+
+
+@app.get("/secret/sauce")
+def get_secret_sauce() -> str:
+    sauce_a = secret_one()
+    sleep(0.5)
+    sauce_b = secret_two()
+    return sauce_a + sauce_b
